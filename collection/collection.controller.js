@@ -1,15 +1,22 @@
-const { user, collection } = require("../prismaClient");
 const prisma = require("../prismaClient");
+const httpStatus = require("http-status");
 
 const readAllCollections = async (req, res) => {
   try {
     const collections = await prisma.collection.findMany();
-    if (collections) res.status(200).json(collections);
-    else res.sendStatus(400);
+    if (collections) {
+      res
+        .status(httpStatus.OK)
+        .json({ message: httpStatus[httpStatus.OK], data: collections });
+    } else if (collections?.length == 0) {
+      res.status(httpStatus.OK).json({ message: httpStatus[httpStatus.OK] });
+    } else {
+      throw new Error("Unknown error while getting all users");
+    }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -23,12 +30,19 @@ const readCollection = async (req, res) => {
         ideas: true,
       },
     });
-    if (collection) res.status(200).json(collection);
-    else res.sendStatus(400);
+    if (collection) {
+      res
+        .status(httpStatus.OK)
+        .json({ message: httpStatus[httpStatus.OK], data: collection });
+    } else {
+      res
+        .status(httpStatus.NOT_FOUND)
+        .json({ message: httpStatus[httpStatus.NOT_FOUND] });
+    }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -39,12 +53,20 @@ const createCollection = async (req, res) => {
     const collection = await prisma.collection.create({
       data: req.body,
     });
-    if (collection) res.status(201).json({ id: collection.id });
-    else res.sendStatus(400);
+    if (collection) {
+      res.status(httpStatus.CREATED).json({
+        message: httpStatus[httpStatus.CREATED],
+        data: { id: collection.id },
+      });
+    } else {
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
+    }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -57,12 +79,17 @@ const updateCollection = async (req, res) => {
       },
       data: req.body,
     });
-    if (collection) res.sendStatus(200);
-    else res.sendStatus(400);
+    if (collection) {
+      res.status(httpStatus.OK).json({ message: httpStatus[httpStatus.OK] });
+    } else {
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
+    }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -74,12 +101,19 @@ const deleteCollection = async (req, res) => {
         userId: parseInt(req.user.id),
       },
     });
-    if (collection) res.sendStatus(200);
-    else res.sendStatus(400);
+    if (collection) {
+      res
+        .status(httpStatus.NO_CONTENT)
+        .json({ message: httpStatus[httpStatus.NO_CONTENT] });
+    } else {
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
+    }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../prismaClient");
 const bcrypt = require("bcrypt");
+const httpStatus = require("http-status");
 
 const registerUser = async (req, res) => {
   try {
@@ -10,7 +11,9 @@ const registerUser = async (req, res) => {
     // Validate user input
     if (!(email && password && firstName && lastName && username)) {
       // Some input is missing
-      res.sendStatus(400);
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
     } else {
       // check if user already exist
       // Validate if user exist in our database
@@ -27,7 +30,10 @@ const registerUser = async (req, res) => {
 
       if (oldUserWithEmail?.email || oldUserWithUsername?.email) {
         // User having the same email or password already exist
-        return res.sendStatus(409);
+        res
+          .status(httpStatus.CONFLICT)
+          .json({ error: httpStatus[httpStatus.CONFLICT] });
+        return;
       } else {
         //Encrypt user password
         encryptedPassword = await bcrypt.hash(password, 12);
@@ -44,15 +50,16 @@ const registerUser = async (req, res) => {
         });
 
         // return new user
-        res.status(201).json({
-          id: user.id,
+        res.status(httpStatus.CREATED).json({
+          message: httpStatus[httpStatus.CREATED],
+          data: { id: user.id },
         });
       }
     }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -62,7 +69,9 @@ const loginUser = async (req, res) => {
 
     // Validate user input
     if (!(email && password)) {
-      res.sendStatus(400);
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
     } else {
       const user = await prisma.user.findUnique({
         where: {
@@ -71,9 +80,10 @@ const loginUser = async (req, res) => {
       });
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        console.log("Password didn't match");
         // Wrong credentials
-        res.sendStatus(403);
+        res
+          .status(httpStatus.UNAUTHORIZED)
+          .json({ error: httpStatus[httpStatus.UNAUTHORIZED] });
       } else {
         // Create token
         const { id, username } = user;
@@ -84,18 +94,18 @@ const loginUser = async (req, res) => {
             expiresIn: "2h",
           }
         );
-        // save user token
-        user.token = token;
-
-        res.json({
-          token,
+        // // save user token
+        // user.token = token;
+        res.status(httpStatus.ACCEPTED).json({
+          message: httpStatus[httpStatus.ACCEPTED],
+          data: { token },
         });
       }
     }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
@@ -104,9 +114,12 @@ const updateUser = async (req, res) => {
     // Get user input
     const { firstName, lastName, password } = req.body;
     // Validate user input
-    if (!(firstName && lastName && password))
-      res.sendStatus(400); // Some input is missing
-    else {
+    if (!(firstName && lastName && password)) {
+      // Some input is missing
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
+    } else {
       // Hashing password
       encryptedPassword = await bcrypt.hash(password, 12);
       const data = { firstName, lastName, password: encryptedPassword };
@@ -116,13 +129,18 @@ const updateUser = async (req, res) => {
         },
         data: data,
       });
-      if (user) res.sendStatus(200);
-      else res.sendStatus(400);
+      if (user) {
+        res.status(httpStatus.OK).json({ message: httpStatus[httpStatus.OK] });
+      } else {
+        res
+          .status(httpStatus.BAD_REQUEST)
+          .json({ error: httpStatus[httpStatus.BAD_REQUEST] });
+      }
     }
   } catch (err) {
     console.log(err);
     // Internal server error
-    res.sendStatus(500);
+    next(err);
   }
 };
 
